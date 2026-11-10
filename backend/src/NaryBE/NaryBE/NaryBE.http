@@ -1,0 +1,6 @@
+@NaryBE_HostAddress = http://localhost:5101
+
+GET {{NaryBE_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
