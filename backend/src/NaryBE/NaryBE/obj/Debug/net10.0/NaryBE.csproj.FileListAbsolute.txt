@@ -1,8 +1,0 @@
-c:\projects\priv\Nary\backend\src\NaryBE\NaryBE\obj\Debug\net10.0\NaryBE.csproj.AssemblyReference.cache
-c:\projects\priv\Nary\backend\src\NaryBE\NaryBE\obj\Debug\net10.0\rpswa.dswa.cache.json
-c:\projects\priv\Nary\backend\src\NaryBE\NaryBE\obj\Debug\net10.0\NaryBE.GeneratedMSBuildEditorConfig.editorconfig
-c:\projects\priv\Nary\backend\src\NaryBE\NaryBE\obj\Debug\net10.0\NaryBE.AssemblyInfoInputs.cache
-c:\projects\priv\Nary\backend\src\NaryBE\NaryBE\obj\Debug\net10.0\NaryBE.AssemblyInfo.cs
-c:\projects\priv\Nary\backend\src\NaryBE\NaryBE\obj\Debug\net10.0\NaryBE.csproj.CoreCompileInputs.cache
-c:\projects\priv\Nary\backend\src\NaryBE\NaryBE\obj\Debug\net10.0\NaryBE.MvcApplicationPartsAssemblyInfo.cs
-c:\projects\priv\Nary\backend\src\NaryBE\NaryBE\obj\Debug\net10.0\NaryBE.MvcApplicationPartsAssemblyInfo.cache
