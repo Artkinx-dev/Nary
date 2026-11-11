@@ -23,7 +23,11 @@ public class JwtService : IJwtService
 
     public string GenerateToken(User user)
     {
-        var secret = _configuration["Jwt:Secret"] ?? "NarySuperSecretKeyForDevelopmentAndTesting2026!#";
+        var secret = _configuration["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            throw new InvalidOperationException("JWT Secret is not configured.");
+        }
         var issuer = _configuration["Jwt:Issuer"] ?? "NaryAPI";
         var audience = _configuration["Jwt:Audience"] ?? "NaryClients";
         var expiryHours = int.TryParse(_configuration["Jwt:ExpiryInHours"], out var h) ? h : 24;
