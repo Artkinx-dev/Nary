@@ -1,0 +1,55 @@
+# ==========================================
+# .NET / C# Backend
+# ==========================================
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider / IDEs
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Local configurations & secrets
+appsettings.Development.json
+appsettings.*.local.json
+secrets.json
+
+# Build and Test results
+publish/
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+*.coveragexml
+*.dmp
+*.mdmp
+
+# ==========================================
+# Flutter / Dart Frontend
+# ==========================================
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/build/
+frontend/.pub/
+frontend/.pub-cache/
+
+# ==========================================
+# OS & Misc
+# ==========================================
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+
+docs/*

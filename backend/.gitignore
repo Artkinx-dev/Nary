@@ -1,0 +1,42 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+## Visual Studio Code / Rider
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+
+## User-specific / Local settings
+appsettings.Development.json
+appsettings.*.local.json
+secrets.json
+
+## Publish & Test output
+publish/
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+*.coveragexml
+
+## Crash dumps & profiling
+*.dmp
+*.mdmp
+*.stackdump
+
+## OS generated files
+.DS_Store
+Thumbs.db
+

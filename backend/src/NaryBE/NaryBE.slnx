@@ -1,3 +1,5 @@
 <Solution>
+  <Project Path="Core/Core.csproj"/>
+  <Project Path="Infrastructure/Infrastructure.csproj"/>
   <Project Path="NaryBE/NaryBE.csproj"/>
 </Solution>
