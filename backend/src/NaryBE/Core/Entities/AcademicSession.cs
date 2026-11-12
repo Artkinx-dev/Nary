@@ -18,5 +18,8 @@ public class AcademicSession
     public bool IsActive { get; set; } = false;
 
     public ICollection<Semester> Semesters { get; set; } = new List<Semester>();
-}
 
+    public ICollection<AcademicMilestone> Milestones { get; set; } = new List<AcademicMilestone>();
+
+    public ICollection<CourseAllocation> Allocations { get; set; } = new List<CourseAllocation>();
+}

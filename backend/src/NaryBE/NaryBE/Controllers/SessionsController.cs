@@ -81,7 +81,13 @@ public class SessionsController : ControllerBase
                     sem.Id,
                     sem.Name,
                     sem.SessionId,
-                    sem.IsActive
+                    sem.IsActive,
+                    sem.StartDate,
+                    sem.EndDate,
+                    sem.RegistrationStartDate,
+                    sem.RegistrationEndDate,
+                    sem.ExamStartDate,
+                    sem.ExamEndDate
                 )).ToList()
             ))
             .ToListAsync();
@@ -114,7 +120,13 @@ public class SessionsController : ControllerBase
                 sem.Id,
                 sem.Name,
                 sem.SessionId,
-                sem.IsActive
+                sem.IsActive,
+                sem.StartDate,
+                sem.EndDate,
+                sem.RegistrationStartDate,
+                sem.RegistrationEndDate,
+                sem.ExamStartDate,
+                sem.ExamEndDate
             )).ToList()
         );
 
@@ -142,11 +154,25 @@ public class SessionsController : ControllerBase
             return BadRequest(new { message = $"Semester '{request.Name}' already exists in this session." });
         }
 
+        var startDate = request.StartDate.HasValue
+            ? DateTime.SpecifyKind(request.StartDate.Value, DateTimeKind.Utc)
+            : session.StartDate;
+
+        var endDate = request.EndDate.HasValue
+            ? DateTime.SpecifyKind(request.EndDate.Value, DateTimeKind.Utc)
+            : session.EndDate;
+
         var semester = new Semester
         {
             Name = request.Name.Trim(),
             SessionId = id,
-            IsActive = false
+            IsActive = false,
+            StartDate = startDate,
+            EndDate = endDate,
+            RegistrationStartDate = request.RegistrationStartDate.HasValue ? DateTime.SpecifyKind(request.RegistrationStartDate.Value, DateTimeKind.Utc) : null,
+            RegistrationEndDate = request.RegistrationEndDate.HasValue ? DateTime.SpecifyKind(request.RegistrationEndDate.Value, DateTimeKind.Utc) : null,
+            ExamStartDate = request.ExamStartDate.HasValue ? DateTime.SpecifyKind(request.ExamStartDate.Value, DateTimeKind.Utc) : null,
+            ExamEndDate = request.ExamEndDate.HasValue ? DateTime.SpecifyKind(request.ExamEndDate.Value, DateTimeKind.Utc) : null
         };
 
         _context.Semesters.Add(semester);
@@ -156,7 +182,13 @@ public class SessionsController : ControllerBase
             Id: semester.Id,
             Name: semester.Name,
             SessionId: semester.SessionId,
-            IsActive: semester.IsActive
+            IsActive: semester.IsActive,
+            StartDate: semester.StartDate,
+            EndDate: semester.EndDate,
+            RegistrationStartDate: semester.RegistrationStartDate,
+            RegistrationEndDate: semester.RegistrationEndDate,
+            ExamStartDate: semester.ExamStartDate,
+            ExamEndDate: semester.ExamEndDate
         );
 
         return Ok(response);
@@ -182,5 +214,71 @@ public class SessionsController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok(new { message = $"Academic session '{targetSession.Name}' is now active." });
+    }
+
+    // --- Academic Milestones ---
+    [HttpGet("{id:guid}/milestones")]
+    [HasPermission(Permissions.AcademicSessions.View)]
+    [ProducesResponseType(typeof(List<AcademicMilestoneResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSessionMilestones(Guid id)
+    {
+        var sessionExists = await _context.AcademicSessions.AnyAsync(s => s.Id == id);
+        if (!sessionExists)
+        {
+            return NotFound(new { message = "Academic session not found." });
+        }
+
+        var milestones = await _context.AcademicMilestones
+            .Where(m => m.SessionId == id)
+            .OrderBy(m => m.TargetDate)
+            .Select(m => new AcademicMilestoneResponse(
+                m.Id,
+                m.SessionId,
+                m.Title,
+                m.Subtitle,
+                m.TargetDate,
+                m.Category
+            ))
+            .ToListAsync();
+
+        return Ok(milestones);
+    }
+
+    [HttpPost("{id:guid}/milestones")]
+    [HasPermission(Permissions.AcademicSessions.Create)]
+    [ProducesResponseType(typeof(AcademicMilestoneResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateMilestone(Guid id, [FromBody] CreateAcademicMilestoneRequest request)
+    {
+        var session = await _context.AcademicSessions.FindAsync(id);
+        if (session == null)
+        {
+            return NotFound(new { message = "Academic session not found." });
+        }
+
+        var milestone = new AcademicMilestone
+        {
+            SessionId = id,
+            Title = request.Title.Trim(),
+            Subtitle = request.Subtitle?.Trim(),
+            TargetDate = DateTime.SpecifyKind(request.TargetDate, DateTimeKind.Utc),
+            Category = string.IsNullOrWhiteSpace(request.Category) ? "General" : request.Category.Trim()
+        };
+
+        _context.AcademicMilestones.Add(milestone);
+        await _context.SaveChangesAsync();
+
+        var response = new AcademicMilestoneResponse(
+            milestone.Id,
+            milestone.SessionId,
+            milestone.Title,
+            milestone.Subtitle,
+            milestone.TargetDate,
+            milestone.Category
+        );
+
+        return CreatedAtAction(nameof(GetSessionMilestones), new { id = milestone.SessionId }, response);
     }
 }

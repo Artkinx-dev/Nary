@@ -23,11 +23,28 @@ public class AuditsController : ControllerBase
     [HttpGet]
     [HasPermission(Permissions.AuditLogs.View)]
     [ProducesResponseType(typeof(List<AuditLogResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAuditLogs([FromQuery] int limit = 100)
+    public async Task<IActionResult> GetAuditLogs(
+        [FromQuery] string? entityName = null,
+        [FromQuery] string? entityId = null,
+        [FromQuery] int limit = 100)
     {
         limit = Math.Clamp(limit, 1, 500);
 
-        var logs = await _context.AuditLogs
+        var query = _context.AuditLogs.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(entityName))
+        {
+            var trimmedName = entityName.Trim().ToLower();
+            query = query.Where(a => a.EntityName.ToLower() == trimmedName);
+        }
+
+        if (!string.IsNullOrWhiteSpace(entityId))
+        {
+            var trimmedId = entityId.Trim().ToLower();
+            query = query.Where(a => a.EntityId.ToLower() == trimmedId);
+        }
+
+        var logs = await query
             .OrderByDescending(a => a.Timestamp)
             .Take(limit)
             .Select(a => new AuditLogResponse(

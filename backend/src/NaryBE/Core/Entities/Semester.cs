@@ -19,5 +19,12 @@ public class Semester
     public AcademicSession? Session { get; set; }
 
     public bool IsActive { get; set; } = false;
-}
 
+    // Timeline Fields
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public DateTime? RegistrationStartDate { get; set; }
+    public DateTime? RegistrationEndDate { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
+}

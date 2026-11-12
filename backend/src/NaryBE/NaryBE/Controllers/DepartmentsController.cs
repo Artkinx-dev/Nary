@@ -1,6 +1,7 @@
 using Core.Constants;
 using Core.DTOs;
 using Core.Entities;
+using Core.Enums;
 using Infrastructure.Data;
 using Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -46,6 +47,11 @@ public class DepartmentsController : ControllerBase
             Name = request.Name.Trim(),
             Code = request.Code.Trim().ToUpper(),
             FacultyId = request.FacultyId,
+            Email = request.Email?.Trim(),
+            OfficeLocation = request.OfficeLocation?.Trim(),
+            HodUserId = request.HodUserId,
+            HodName = request.HodName?.Trim(),
+            IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -53,12 +59,18 @@ public class DepartmentsController : ControllerBase
         await _context.SaveChangesAsync();
 
         var response = new DepartmentResponse(
-            Id: department.Id,
-            Name: department.Name,
-            Code: department.Code,
-            FacultyId: department.FacultyId,
-            FacultyName: faculty.Name,
-            CreatedAt: department.CreatedAt
+            department.Id,
+            department.Name,
+            department.Code,
+            department.FacultyId,
+            faculty.Name,
+            department.Email,
+            department.OfficeLocation,
+            department.HodName,
+            0,
+            0,
+            department.IsActive,
+            department.CreatedAt
         );
 
         return CreatedAtAction(nameof(GetDepartmentById), new { id = department.Id }, response);
@@ -71,6 +83,8 @@ public class DepartmentsController : ControllerBase
     {
         var query = _context.Departments
             .Include(d => d.Faculty)
+            .Include(d => d.Courses)
+            .Include(d => d.Users)
             .AsQueryable();
 
         if (facultyId.HasValue)
@@ -86,6 +100,12 @@ public class DepartmentsController : ControllerBase
                 d.Code,
                 d.FacultyId,
                 d.Faculty != null ? d.Faculty.Name : null,
+                d.Email,
+                d.OfficeLocation,
+                d.HodName,
+                d.Courses.Count,
+                d.Users.Count(u => u.Role == UserRole.Student),
+                d.IsActive,
                 d.CreatedAt
             ))
             .ToListAsync();
@@ -99,22 +119,30 @@ public class DepartmentsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetDepartmentById(Guid id)
     {
-        var department = await _context.Departments
+        var d = await _context.Departments
             .Include(d => d.Faculty)
+            .Include(d => d.Courses)
+            .Include(d => d.Users)
             .FirstOrDefaultAsync(d => d.Id == id);
 
-        if (department == null)
+        if (d == null)
         {
             return NotFound(new { message = "Department not found." });
         }
 
         var response = new DepartmentResponse(
-            Id: department.Id,
-            Name: department.Name,
-            Code: department.Code,
-            FacultyId: department.FacultyId,
-            FacultyName: department.Faculty?.Name,
-            CreatedAt: department.CreatedAt
+            d.Id,
+            d.Name,
+            d.Code,
+            d.FacultyId,
+            d.Faculty?.Name,
+            d.Email,
+            d.OfficeLocation,
+            d.HodName,
+            d.Courses.Count,
+            d.Users.Count(u => u.Role == UserRole.Student),
+            d.IsActive,
+            d.CreatedAt
         );
 
         return Ok(response);

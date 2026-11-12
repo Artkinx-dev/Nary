@@ -22,6 +22,9 @@ public class AppDbContext : DbContext
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<AcademicSession> AcademicSessions => Set<AcademicSession>();
     public DbSet<Semester> Semesters => Set<Semester>();
+    public DbSet<Course> Courses => Set<Course>();
+    public DbSet<CourseAllocation> CourseAllocations => Set<CourseAllocation>();
+    public DbSet<AcademicMilestone> AcademicMilestones => Set<AcademicMilestone>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
@@ -39,6 +42,19 @@ public class AppDbContext : DbContext
                   .WithMany(d => d.Users)
                   .HasForeignKey(u => u.DepartmentId)
                   .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(u => u.Advisor)
+                  .WithMany()
+                  .HasForeignKey(u => u.AdvisorId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(u => u.MatricNumber)
+                  .IsUnique()
+                  .HasFilter("\"MatricNumber\" IS NOT NULL");
+
+            entity.HasIndex(u => u.StaffId)
+                  .IsUnique()
+                  .HasFilter("\"StaffId\" IS NOT NULL");
         });
 
         // Faculty indexes and constraints
@@ -49,12 +65,52 @@ public class AppDbContext : DbContext
                   .WithOne(d => d.Faculty)
                   .HasForeignKey(d => d.FacultyId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(f => f.Dean)
+                  .WithMany()
+                  .HasForeignKey(f => f.DeanUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Department indexes and constraints
         modelBuilder.Entity<Department>(entity =>
         {
             entity.HasIndex(d => d.Code).IsUnique();
+
+            entity.HasOne(d => d.HeadOfDepartment)
+                  .WithMany()
+                  .HasForeignKey(d => d.HodUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasMany(d => d.Courses)
+                  .WithOne(c => c.Department)
+                  .HasForeignKey(c => c.DepartmentId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Course indexes and constraints
+        modelBuilder.Entity<Course>(entity =>
+        {
+            entity.HasIndex(c => c.Code).IsUnique();
+        });
+
+        // CourseAllocation
+        modelBuilder.Entity<CourseAllocation>(entity =>
+        {
+            entity.HasOne(ca => ca.Course)
+                  .WithMany(c => c.Allocations)
+                  .HasForeignKey(ca => ca.CourseId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(ca => ca.Lecturer)
+                  .WithMany()
+                  .HasForeignKey(ca => ca.LecturerId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(ca => ca.Session)
+                  .WithMany(s => s.Allocations)
+                  .HasForeignKey(ca => ca.SessionId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // AcademicSession
@@ -65,6 +121,11 @@ public class AppDbContext : DbContext
                   .WithOne(sem => sem.Session)
                   .HasForeignKey(sem => sem.SessionId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(s => s.Milestones)
+                  .WithOne(m => m.Session)
+                  .HasForeignKey(m => m.SessionId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // AuditLog
@@ -72,6 +133,8 @@ public class AppDbContext : DbContext
         {
             entity.HasIndex(a => a.Timestamp);
             entity.HasIndex(a => a.UserId);
+            entity.HasIndex(a => a.EntityName);
+            entity.HasIndex(a => a.EntityId);
         });
 
         // Dynamic RBAC - Permission
@@ -151,4 +214,3 @@ public class AppDbContext : DbContext
         return keyProp?.CurrentValue?.ToString();
     }
 }
-

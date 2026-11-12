@@ -47,12 +47,43 @@ public class UsersController : ControllerBase
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(request.MatricNumber))
+        {
+            var matricExists = await _context.Users.AnyAsync(u => u.MatricNumber == request.MatricNumber.Trim());
+            if (matricExists)
+            {
+                return BadRequest(new { message = $"Student with Matriculation Number '{request.MatricNumber}' already exists." });
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.StaffId))
+        {
+            var staffExists = await _context.Users.AnyAsync(u => u.StaffId == request.StaffId.Trim());
+            if (staffExists)
+            {
+                return BadRequest(new { message = $"Lecturer with Staff ID '{request.StaffId}' already exists." });
+            }
+        }
+
         var user = new User
         {
             Email = emailLower,
             PasswordHash = _passwordHasher.HashPassword(request.Password),
             Role = request.Role,
             DepartmentId = request.DepartmentId,
+            FirstName = request.FirstName?.Trim() ?? string.Empty,
+            LastName = request.LastName?.Trim() ?? string.Empty,
+            Title = request.Title?.Trim(),
+            PhoneNumber = request.PhoneNumber?.Trim(),
+            MatricNumber = request.MatricNumber?.Trim(),
+            AcademicLevel = request.AcademicLevel,
+            CurrentCgpa = request.CurrentCgpa,
+            AdvisorId = request.AdvisorId,
+            AdmissionDate = request.Role == UserRole.Student ? DateTime.UtcNow : null,
+            StaffId = request.StaffId?.Trim(),
+            EmploymentType = request.EmploymentType?.Trim() ?? "Full-time",
+            OfficeLocation = request.OfficeLocation?.Trim(),
+            OfficeHours = request.OfficeHours?.Trim(),
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
@@ -60,26 +91,7 @@ public class UsersController : ControllerBase
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        string? deptName = null;
-        if (user.DepartmentId.HasValue)
-        {
-            deptName = await _context.Departments
-                .Where(d => d.Id == user.DepartmentId.Value)
-                .Select(d => d.Name)
-                .FirstOrDefaultAsync();
-        }
-
-        var response = new UserResponse(
-            Id: user.Id,
-            Email: user.Email,
-            Role: user.Role,
-            DepartmentId: user.DepartmentId,
-            DepartmentName: deptName,
-            IsActive: user.IsActive,
-            CreatedAt: user.CreatedAt
-        );
-
-        return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, response);
+        return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, MapToResponse(user, null, 0));
     }
 
     [HttpGet]
@@ -89,6 +101,7 @@ public class UsersController : ControllerBase
     {
         var query = _context.Users
             .Include(u => u.Department)
+            .Include(u => u.Advisor)
             .AsQueryable();
 
         if (role.HasValue)
@@ -98,18 +111,21 @@ public class UsersController : ControllerBase
 
         var users = await query
             .OrderByDescending(u => u.CreatedAt)
-            .Select(u => new UserResponse(
-                u.Id,
-                u.Email,
-                u.Role,
-                u.DepartmentId,
-                u.Department != null ? u.Department.Name : null,
-                u.IsActive,
-                u.CreatedAt
-            ))
             .ToListAsync();
 
-        return Ok(users);
+        var lecturerIds = users.Where(u => u.Role == UserRole.Lecturer).Select(u => u.Id).ToList();
+        var allocationCounts = await _context.CourseAllocations
+            .Where(ca => lecturerIds.Contains(ca.LecturerId))
+            .GroupBy(ca => ca.LecturerId)
+            .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+        var response = users.Select(u =>
+        {
+            var coursesCount = allocationCounts.TryGetValue(u.Id, out var count) ? count : 0;
+            return MapToResponse(u, u.Advisor?.FullName, coursesCount);
+        }).ToList();
+
+        return Ok(response);
     }
 
     [HttpGet("{id:guid}")]
@@ -120,6 +136,7 @@ public class UsersController : ControllerBase
     {
         var user = await _context.Users
             .Include(u => u.Department)
+            .Include(u => u.Advisor)
             .FirstOrDefaultAsync(u => u.Id == id);
 
         if (user == null)
@@ -127,17 +144,9 @@ public class UsersController : ControllerBase
             return NotFound(new { message = "User not found." });
         }
 
-        var response = new UserResponse(
-            Id: user.Id,
-            Email: user.Email,
-            Role: user.Role,
-            DepartmentId: user.DepartmentId,
-            DepartmentName: user.Department?.Name,
-            IsActive: user.IsActive,
-            CreatedAt: user.CreatedAt
-        );
+        var coursesCount = await _context.CourseAllocations.CountAsync(ca => ca.LecturerId == id);
 
-        return Ok(response);
+        return Ok(MapToResponse(user, user.Advisor?.FullName, coursesCount));
     }
 
     [HttpPut("{id:guid}/status")]
@@ -148,6 +157,7 @@ public class UsersController : ControllerBase
     {
         var user = await _context.Users
             .Include(u => u.Department)
+            .Include(u => u.Advisor)
             .FirstOrDefaultAsync(u => u.Id == id);
 
         if (user == null)
@@ -158,15 +168,8 @@ public class UsersController : ControllerBase
         user.IsActive = request.IsActive;
         await _context.SaveChangesAsync();
 
-        return Ok(new UserResponse(
-            Id: user.Id,
-            Email: user.Email,
-            Role: user.Role,
-            DepartmentId: user.DepartmentId,
-            DepartmentName: user.Department?.Name,
-            IsActive: user.IsActive,
-            CreatedAt: user.CreatedAt
-        ));
+        var coursesCount = await _context.CourseAllocations.CountAsync(ca => ca.LecturerId == id);
+        return Ok(MapToResponse(user, user.Advisor?.FullName, coursesCount));
     }
 
     [HttpPut("{id:guid}/assign-department")]
@@ -176,13 +179,15 @@ public class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AssignDepartment(Guid id, [FromBody] AssignDepartmentRequest request)
     {
-        var user = await _context.Users.FindAsync(id);
+        var user = await _context.Users
+            .Include(u => u.Advisor)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
         if (user == null)
         {
             return NotFound(new { message = "User not found." });
         }
 
-        string? deptName = null;
         if (request.DepartmentId.HasValue)
         {
             var dept = await _context.Departments.FindAsync(request.DepartmentId.Value);
@@ -190,20 +195,50 @@ public class UsersController : ControllerBase
             {
                 return BadRequest(new { message = "Selected department does not exist." });
             }
-            deptName = dept.Name;
+            user.Department = dept;
+        }
+        else
+        {
+            user.Department = null;
         }
 
         user.DepartmentId = request.DepartmentId;
         await _context.SaveChangesAsync();
 
-        return Ok(new UserResponse(
-            Id: user.Id,
-            Email: user.Email,
-            Role: user.Role,
-            DepartmentId: user.DepartmentId,
-            DepartmentName: deptName,
-            IsActive: user.IsActive,
-            CreatedAt: user.CreatedAt
-        ));
+        var coursesCount = await _context.CourseAllocations.CountAsync(ca => ca.LecturerId == id);
+        return Ok(MapToResponse(user, user.Advisor?.FullName, coursesCount));
+    }
+
+    private static UserResponse MapToResponse(User u, string? advisorName, int coursesCount)
+    {
+        return new UserResponse(
+            Id: u.Id,
+            Email: u.Email,
+            FirstName: u.FirstName,
+            LastName: u.LastName,
+            FullName: u.FullName,
+            Title: u.Title,
+            PhoneNumber: u.PhoneNumber,
+            Role: u.Role,
+            DepartmentId: u.DepartmentId,
+            DepartmentName: u.Department?.Name,
+            IsActive: u.IsActive,
+            CreatedAt: u.CreatedAt,
+            // Student specifics
+            MatricNumber: u.MatricNumber,
+            AcademicLevel: u.AcademicLevel,
+            CurrentCgpa: u.CurrentCgpa,
+            CreditsEarned: u.CreditsEarned,
+            AdvisorName: advisorName,
+            AdmissionDate: u.AdmissionDate,
+            // Lecturer specifics
+            StaffId: u.StaffId,
+            EmploymentType: u.EmploymentType,
+            OfficeLocation: u.OfficeLocation,
+            OfficeHours: u.OfficeHours,
+            CoursesCount: u.Role == UserRole.Lecturer ? coursesCount : null,
+            StudentsMentoredCount: u.StudentsMentoredCount,
+            PublicationsCount: u.PublicationsCount
+        );
     }
 }

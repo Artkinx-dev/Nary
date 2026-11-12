@@ -68,6 +68,7 @@ public class AuthController : ControllerBase
 
         var user = await _context.Users
             .Include(u => u.Department)
+            .Include(u => u.Advisor)
             .FirstOrDefaultAsync(u => u.Id == userId);
 
         if (user == null)
@@ -75,15 +76,34 @@ public class AuthController : ControllerBase
             return NotFound();
         }
 
+        var coursesCount = await _context.CourseAllocations.CountAsync(ca => ca.LecturerId == userId);
+
         return Ok(new UserResponse(
             Id: user.Id,
             Email: user.Email,
+            FirstName: user.FirstName,
+            LastName: user.LastName,
+            FullName: user.FullName,
+            Title: user.Title,
+            PhoneNumber: user.PhoneNumber,
             Role: user.Role,
             DepartmentId: user.DepartmentId,
             DepartmentName: user.Department?.Name,
             IsActive: user.IsActive,
-            CreatedAt: user.CreatedAt
+            CreatedAt: user.CreatedAt,
+            MatricNumber: user.MatricNumber,
+            AcademicLevel: user.AcademicLevel,
+            CurrentCgpa: user.CurrentCgpa,
+            CreditsEarned: user.CreditsEarned,
+            AdvisorName: user.Advisor?.FullName,
+            AdmissionDate: user.AdmissionDate,
+            StaffId: user.StaffId,
+            EmploymentType: user.EmploymentType,
+            OfficeLocation: user.OfficeLocation,
+            OfficeHours: user.OfficeHours,
+            CoursesCount: user.Role == Core.Enums.UserRole.Lecturer ? coursesCount : null,
+            StudentsMentoredCount: user.StudentsMentoredCount,
+            PublicationsCount: user.PublicationsCount
         ));
     }
 }
-

@@ -31,6 +31,13 @@ public static class Permissions
         public const string AssignDepartment = "users.department.assign";
     }
 
+    public static class Courses
+    {
+        public const string View = "courses.view";
+        public const string Create = "courses.create";
+        public const string Delete = "courses.delete";
+    }
+
     public static class AuditLogs
     {
         public const string View = "audits.view";
@@ -60,9 +67,12 @@ public static class Permissions
         (Users.ManageStatus, "Manage User Status", "Users", "Permission to activate, suspend, or deactivate user accounts"),
         (Users.AssignDepartment, "Assign User Department", "Users", "Permission to assign or reassign users to departments"),
 
+        (Courses.View, "View Courses", "Courses", "Permission to view university courses"),
+        (Courses.Create, "Create Course", "Courses", "Permission to add new courses to the catalog"),
+        (Courses.Delete, "Delete Course", "Courses", "Permission to remove courses from the catalog"),
+
         (AuditLogs.View, "View Audit Trail", "Audit Logs", "Permission to inspect system audit trail and activity history"),
 
         (Rbac.Manage, "Manage Roles & Permissions", "RBAC", "Permission to view and dynamically configure role permissions")
     };
 }
-
